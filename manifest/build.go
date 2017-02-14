@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -72,13 +73,13 @@ func (m *Manifest) Build(dir, appName string, s Stream, opts BuildOptions) error
 
 			lcd := filepath.Join(dir, ".cache", "build")
 
-			if err := os.MkdirAll(lcd, 0755); err != nil {
+			if err := os.RemoveAll(lcd); err != nil {
 				s <- fmt.Sprintf("cache error: %s", err)
 			}
 
-			exec.Command("rm", "-rf", lcd).Run()
-			exec.Command("cp", "-a", filepath.Join(opts.CacheDir, hash), lcd).Run()
-			exec.Command("mkdir", "-p", lcd).Run()
+			if err := copyDir(filepath.Join(opts.CacheDir, hash), lcd); err != nil {
+				s <- fmt.Sprintf("cache error: %s", err)
+			}
 		}
 
 		bargs := map[string]string{}
@@ -192,4 +193,93 @@ func buildArgs(dockerfile string) ([]string, error) {
 	}
 
 	return args, nil
+}
+
+func copyFile(src, dst string) (err error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return
+	}
+
+	err = out.Sync()
+	if err != nil {
+		return
+	}
+
+	stat, err := os.Stat(src)
+	if err != nil {
+		return
+	}
+	err = os.Chmod(dst, stat.Mode())
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func copyDir(src string, dst string) (err error) {
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	si, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !si.IsDir() {
+		return fmt.Errorf("source is not a directory")
+	}
+
+	_, err = os.Stat(dst)
+	if err != nil && !os.IsNotExist(err) {
+		return
+	}
+	if err == nil {
+		return fmt.Errorf("destination already exists")
+	}
+
+	err = os.MkdirAll(dst, si.Mode())
+	if err != nil {
+		return
+	}
+
+	files, err := ioutil.ReadDir(src)
+	if err != nil {
+		return
+	}
+
+	for _, f := range files {
+		srcPath := filepath.Join(src, f.Name())
+		dstPath := filepath.Join(dst, f.Name())
+
+		if f.IsDir() {
+			err = copyDir(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		} else {
+			if f.Mode()&os.ModeSymlink != 0 {
+				// ignore symlinks
+				continue
+			}
+
+			err = copyFile(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return
 }
