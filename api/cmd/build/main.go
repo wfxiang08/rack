@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -235,7 +234,6 @@ func build(dir string) error {
 
 	cacheKey := fmt.Sprintf("apps/%s/cache.tgz", flagApp)
 	cacheDir := filepath.Join(tmp, "cache")
-	cacheArchive := filepath.Join(tmp, "cache.tgz")
 
 	if err := os.Mkdir(cacheDir, 0755); err != nil {
 		return err
@@ -247,22 +245,12 @@ func build(dir string) error {
 			return err
 		}
 
-		fd, err := os.Create(cacheArchive)
+		tgr, err := structs.NewTarGzipReader(r)
 		if err != nil {
 			return err
 		}
 
-		defer fd.Close()
-
-		if _, err := io.Copy(fd, r); err != nil {
-			return err
-		}
-
-		if err := fd.Close(); err != nil {
-			return err
-		}
-
-		if err := exec.Command("tar", "xzf", cacheArchive, "-C", cacheDir).Run(); err != nil {
+		if err := tgr.ExtractArchive(cacheDir); err != nil {
 			return err
 		}
 	}
@@ -281,16 +269,17 @@ func build(dir string) error {
 		return err
 	}
 
-	if err := exec.Command("tar", "czf", cacheArchive, "-C", cacheDir, ".").Run(); err != nil {
+	cd := bytes.NewBuffer([]byte{})
+	tgw := structs.NewTarGzipWriter(cd)
+
+	if err := tgw.WriteDirectory(cacheDir); err != nil {
+		return err
+	}
+	if err := tgw.Close(); err != nil {
 		return err
 	}
 
-	fd, err := os.Open(cacheArchive)
-	if err != nil {
-		return err
-	}
-
-	if _, err := currentProvider.ObjectStore(cacheKey, fd, structs.ObjectOptions{}); err != nil {
+	if _, err := currentProvider.ObjectStore(cacheKey, cd, structs.ObjectOptions{}); err != nil {
 		return err
 	}
 

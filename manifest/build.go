@@ -222,7 +222,13 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
+
 	err = os.Chmod(dst, stat.Mode())
+	if err != nil {
+		return err
+	}
+
+	err = os.Chtimes(dst, stat.ModTime(), stat.ModTime())
 	if err != nil {
 		return err
 	}
