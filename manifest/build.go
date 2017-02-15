@@ -195,42 +195,42 @@ func buildArgs(dockerfile string) ([]string, error) {
 	return args, nil
 }
 
-func copyFile(src, dst string) (err error) {
+func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
-		return
+		return err
 	}
 	defer in.Close()
 
 	out, err := os.Create(dst)
 	if err != nil {
-		return
+		return err
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, in)
 	if err != nil {
-		return
+		return err
 	}
 
 	err = out.Sync()
 	if err != nil {
-		return
+		return err
 	}
 
 	stat, err := os.Stat(src)
 	if err != nil {
-		return
+		return err
 	}
 	err = os.Chmod(dst, stat.Mode())
 	if err != nil {
-		return
+		return err
 	}
 
-	return
+	return nil
 }
 
-func copyDir(src string, dst string) (err error) {
+func copyDir(src string, dst string) error {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -244,7 +244,7 @@ func copyDir(src string, dst string) (err error) {
 
 	_, err = os.Stat(dst)
 	if err != nil && !os.IsNotExist(err) {
-		return
+		return err
 	}
 	if err == nil {
 		return fmt.Errorf("destination already exists")
@@ -252,12 +252,12 @@ func copyDir(src string, dst string) (err error) {
 
 	err = os.MkdirAll(dst, si.Mode())
 	if err != nil {
-		return
+		return err
 	}
 
 	files, err := ioutil.ReadDir(src)
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, f := range files {
@@ -281,5 +281,6 @@ func copyDir(src string, dst string) (err error) {
 			}
 		}
 	}
-	return
+
+	return nil
 }
