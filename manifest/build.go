@@ -69,18 +69,21 @@ func (m *Manifest) Build(dir, appName string, s Stream, opts BuildOptions) error
 		dockerFile = filepath.Join(context, dockerFile)
 
 		if opts.CacheDir != "" {
-			hash := service.Build.Hash()
+			_, err := os.Stat(opts.CacheDir)
+			if !os.IsNotExist(err) { // we only copy stuff over if there is a cache in storage
+				hash := service.Build.Hash()
 
-			lcd := filepath.Join(dir, ".cache", "build")
+				lcd := filepath.Join(dir, ".cache", "build")
 
-			if err := os.RemoveAll(lcd); err != nil {
-				s <- fmt.Sprintf("cache error: %s", err)
-			}
-
-			if err := copyDir(filepath.Join(opts.CacheDir, hash), lcd); err != nil {
-				// do not display "error" if dir doesn't exist
-				if !strings.Contains(err.Error(), "no such file or directory") {
+				if err := os.RemoveAll(lcd); err != nil {
 					s <- fmt.Sprintf("cache error: %s", err)
+				}
+
+				if err := copyDir(filepath.Join(opts.CacheDir, hash), lcd); err != nil {
+					// do not display "error" if dir doesn't exist
+					if !strings.Contains(err.Error(), "no such file or directory") {
+						s <- fmt.Sprintf("cache error: %s", err)
+					}
 				}
 			}
 		}

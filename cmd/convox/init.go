@@ -172,6 +172,11 @@ func initApplication(dir string) (string, error) {
 
 	cleanComposeFile()
 
+	// create the special cache dir that the Dockerfile will copy from
+	if err := os.MkdirAll(".cache/build/buildpack", 0755); err != nil {
+		fmt.Println("unable to create build cache")
+	}
+
 	fmt.Println()
 	fmt.Println("Try running `convox start`")
 	return kind, err
