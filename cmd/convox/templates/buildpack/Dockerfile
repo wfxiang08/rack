@@ -7,9 +7,10 @@ ENV {{ range $key, $value := .environment }}{{ $key }}={{ $value }} {{ end }}
 ENV HOME=/app
 WORKDIR /app
 
+COPY .cache/build/buildpack /var/build/cache/buildpack
 COPY . /app
 RUN chmod +x /app/entrypoint.sh
 
-RUN /tmp/heroku-buildpack-{{ .framework }}/bin/compile /app /tmp/cache
+RUN /tmp/heroku-buildpack-{{ .framework }}/bin/compile /app /var/build/cache/buildpack
 
 ENTRYPOINT ["/app/entrypoint.sh"]
