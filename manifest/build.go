@@ -78,7 +78,10 @@ func (m *Manifest) Build(dir, appName string, s Stream, opts BuildOptions) error
 			}
 
 			if err := copyDir(filepath.Join(opts.CacheDir, hash), lcd); err != nil {
-				s <- fmt.Sprintf("cache error: %s", err)
+				// do not display "error" if dir doesn't exist
+				if !strings.Contains(err.Error(), "no such file or directory") {
+					s <- fmt.Sprintf("cache error: %s", err)
+				}
 			}
 		}
 
@@ -117,6 +120,15 @@ func (m *Manifest) Build(dir, appName string, s Stream, opts BuildOptions) error
 
 		ropts := RunnerOptions{
 			Verbose: opts.Verbose,
+			StreamHandlers: []RunnerStreamHandler{
+				func(str string) string {
+					// do not display "error" if dir doesn't exist
+					if strings.Contains(str, "/var/cache/build: no such file or directory") {
+						return ""
+					}
+					return str
+				},
+			},
 		}
 
 		if err := DefaultRunner.Run(s, Docker(args...), ropts); err != nil {
@@ -133,7 +145,7 @@ func (m *Manifest) Build(dir, appName string, s Stream, opts BuildOptions) error
 			exec.Command("rm", "-rf", filepath.Join(opts.CacheDir, hash)).Run()
 
 			if err := DefaultRunner.Run(s, Docker("cp", fmt.Sprintf("%s:/var/cache/build", hash), filepath.Join(opts.CacheDir, hash)), ropts); err != nil {
-				s <- fmt.Sprintf("cache error: %s", err)
+				s <- fmt.Sprintf("ignoring build cache")
 			}
 
 			if err := DefaultRunner.Run(s, Docker("rm", hash), ropts); err != nil {

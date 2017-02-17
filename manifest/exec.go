@@ -10,8 +10,12 @@ import (
 
 // RunnerOptions are optional settings for a Runner
 type RunnerOptions struct {
-	Verbose bool
+	StreamHandlers []RunnerStreamHandler
+	Verbose        bool
 }
+
+// RunnerStreamHandler is a handler that allows for pre-stream modifications
+type RunnerStreamHandler func(string) string
 
 // Runner is the interface to run commands
 type Runner interface {
@@ -54,7 +58,7 @@ func RunAsync(s Stream, cmd *exec.Cmd, done chan error, opts RunnerOptions) {
 
 	r, w := io.Pipe()
 
-	go streamReader(s, r)
+	go streamReader(s, r, opts.StreamHandlers)
 
 	cmd.Stdout = w
 	cmd.Stderr = w
@@ -69,12 +73,20 @@ func RunAsync(s Stream, cmd *exec.Cmd, done chan error, opts RunnerOptions) {
 	}()
 }
 
-func streamReader(s Stream, r io.Reader) {
+func streamReader(s Stream, r io.Reader, handlers []RunnerStreamHandler) {
 	scanner := bufio.NewScanner(r)
 
 	scanner.Buffer(make([]byte, 0, 4*1024), 10*1024*1024)
 
 	for scanner.Scan() {
-		s <- scanner.Text()
+		text := scanner.Text()
+
+		for _, h := range handlers {
+			text = h(text)
+		}
+
+		if text != "" {
+			s <- text
+		}
 	}
 }
