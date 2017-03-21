@@ -11,3 +11,8 @@ var rackFlag = cli.StringFlag{
 	Name:  "rack",
 	Usage: "rack name",
 }
+
+var notifyFlag = cli.BoolFlag{
+	Name:  "notify",
+	Usage: "send a desktop notification when operation is complete",
+}

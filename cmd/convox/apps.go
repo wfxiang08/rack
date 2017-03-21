@@ -31,6 +31,7 @@ func init() {
 				Action:      cmdAppCreate,
 				Flags: []cli.Flag{
 					rackFlag,
+					notifyFlag,
 					cli.BoolFlag{
 						Name:   "wait",
 						EnvVar: "CONVOX_WAIT",
@@ -175,6 +176,7 @@ func cmdAppDelete(c *cli.Context) error {
 }
 
 func cmdAppInfo(c *cli.Context) error {
+
 	_, app, err := stdcli.DirApp(c, ".")
 	if err != nil {
 		return stdcli.Error(err)

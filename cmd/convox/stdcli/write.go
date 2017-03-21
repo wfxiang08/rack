@@ -5,10 +5,16 @@ import (
 	"io"
 	"os"
 	"regexp"
+
+	"github.com/0xAX/notificator"
 )
 
 var (
 	DefaultWriter *Writer
+	Notifier      = notificator.New(notificator.Options{
+		DefaultIcon: "convox.png",
+		AppName:     "Convox",
+	})
 )
 
 type Renderer func(string) string
@@ -74,6 +80,12 @@ func Writef(format string, args ...interface{}) (int, error) {
 	return DefaultWriter.Writef(format, args...)
 }
 
+func Notify(msg string) {
+	Notifier.Push(
+		"Convox", msg, "", notificator.UR_NORMAL,
+	)
+}
+
 func (w *Writer) Error(err error) error {
 	err = ErrorStdCli(err.Error())
 	if err.Error() != "Token expired" {
@@ -87,6 +99,7 @@ func (w *Writer) Errorf(format string, args ...interface{}) error {
 }
 
 func (w *Writer) OK() (int, error) {
+	Notify("OK")
 	return w.Writef("<ok>OK</ok>\n")
 }
 
